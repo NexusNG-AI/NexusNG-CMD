@@ -84,6 +84,11 @@ For bug reports and feature requests, open an issue [here](https://github.com/T9
 
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for more details.
 
+## Preview
+![image](https://github.com/user-attachments/assets/4aec1d88-1f48-4b52-b141-78d336d8433e) ![image](https://github.com/user-attachments/assets/2a230067-12cc-4a83-901b-21572336b57b)
+
+
+
 ## ⚠️ Disclaimer
 
 NexusNG-CMD is an independent project and is **not officially affiliated with DeepSeek**. Use of the DeepSeek API is subject to DeepSeek’s terms of service.
