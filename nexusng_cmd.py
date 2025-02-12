@@ -1,3 +1,4 @@
+# version ohne offline function
 import os
 import sys
 import time
@@ -11,15 +12,27 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.table import Table
-from rich.box import ROUNDED
+from rich.box import DOUBLE
 from rich.align import Align
 from rich.style import Style
 from rich.text import Text
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
+from rich.theme import Theme
 import ctypes
 
-# Initialize Rich console
-console = Console()
+# Custom theme for a more professional look
+custom_theme = Theme({
+    "info": "dim cyan",
+    "warning": "magenta",
+    "danger": "bold red",
+    "success": "bold green",
+    "primary": "bold blue",
+    "secondary": "cyan",
+    "accent": "bold yellow",  # Changed from 'accent' to 'bold yellow'
+})
+
+# Initialize Rich console with custom theme
+console = Console(theme=custom_theme)
 
 # Directory for chat storage and settings
 CHATS_DIR = os.path.join(os.path.expanduser("~"), ".nexusng_chats")
@@ -78,17 +91,18 @@ def verify_api_key(api_key):
 def prompt_for_api_key():
     while True:
         console.print(Panel.fit(
-            "[yellow]No valid DeepSeek API key found.[/yellow]\n"
+            "[warning]No valid DeepSeek API key found.[/warning]\n"
             "Please enter your DeepSeek API key to continue.",
             title="API Key Required",
-            border_style="red"
+            border_style="danger",
+            padding=(1, 1)
         ))
         api_key = getpass.getpass("Enter your DeepSeek API key (input will be hidden): ")
         if verify_api_key(api_key):
             save_api_key(api_key)
             return api_key
         else:
-            console.print("[red]Invalid API key. Please try again.[/red]")
+            console.print("[danger]Invalid API key. Please try again.[/danger]")
             time.sleep(2)
 
 def generate_response(prompt, chat_history, preferred_name, api_key):
@@ -96,8 +110,18 @@ def generate_response(prompt, chat_history, preferred_name, api_key):
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
-    messages = [{"role": "system", "content": f"You are NexusNG-CMD, an AI assistant developed by TucoT9. You have memory of previous messages in this conversation. Always address the user as {preferred_name}."}]
+    
+    system_message = f"""You are NexusNG-CMD, the CMD version of the NexusNG. Unlike the full NexusNG version, you don't use the NexusNG database. Instead, you rely on an API key from DeepSeek to avoid unnecessary resource consumption from NexusNG. If users want the full experience, they should visit https://nexusng.site.
+
+You are still an open-source tool developed by Tuco, available for everyone to use. You retain memory of previous messages to offer better responses, and your main purpose is to support with programming, user interface design, and other technical projects. Always address the user as {preferred_name}.
+
+If asked about NexusNG, provide the official website https://nexusng.site or invite users to join the Discord community at https://discord.gg/nexusng. If asked about Tuco, refer them to https://tucot9.com."""
+    
+    messages = [{"role": "system", "content": system_message}]
     messages.extend(chat_history)
+    messages.append({"role": "user", "content": prompt})
+
+
     messages.append({"role": "user", "content": prompt})
     
     data = {
@@ -121,7 +145,7 @@ def generate_response(prompt, chat_history, preferred_name, api_key):
 
 def print_animated(text, delay=0.03):
     for char in text:
-        console.print(char, end="", style="cyan")
+        console.print(char, end="", style="secondary")
         console.file.flush()
         time.sleep(delay)
     console.print()
@@ -145,12 +169,12 @@ def list_chats():
     return [f.split('.')[0] for f in os.listdir(CHATS_DIR) if f.endswith('.json') and f != "settings.json"]
 
 def display_chat_history(messages):
-    table = Table(show_header=False, expand=True, box=ROUNDED, border_style="dim")
+    table = Table(show_header=False, expand=True, box=DOUBLE, border_style="primary")
     for msg in messages:
         if msg['role'] == 'user':
             table.add_row(Panel(msg['content'], style="bold yellow", title="You", border_style="yellow"))
         elif msg['role'] == 'assistant':
-            table.add_row(Panel(Markdown(msg['content']), style="cyan", title="NexusNG-CMD", border_style="cyan"))
+            table.add_row(Panel(Markdown(msg['content']), style="secondary", title="NexusNG-CMD", border_style="secondary"))
     console.print(table)
 
 def chat_interface(chat_name, messages, settings, api_key):
@@ -167,11 +191,11 @@ def chat_interface(chat_name, messages, settings, api_key):
             TextColumn("[progress.description]{task.description}"),
             transient=True,
         ) as progress:
-            task = progress.add_task("[cyan]NexusNG-CMD is thinking...", total=None)
+            task = progress.add_task("[secondary]NexusNG-CMD is processing...", total=None)
             ai_response = generate_response(user_input, messages, settings['preferred_name'], api_key)
         
         if ai_response.startswith("ERROR: Invalid API key"):
-            console.print("[red]" + ai_response + "[/red]")
+            console.print("[danger]" + ai_response + "[/danger]")
             input("\nPress Enter to return to the main menu...")
             return
         
@@ -184,7 +208,7 @@ def chat_interface(chat_name, messages, settings, api_key):
         input("\nPress Enter to continue...")
 
 def display_menu():
-    menu_style = Style(color="cyan", bold=True)
+    menu_style = "bold cyan"
     menu = Text()
     menu.append("1. ", style="yellow")
     menu.append("Start a new chat\n", style=menu_style)
@@ -200,13 +224,13 @@ def display_menu():
     panel = Panel(
         Align.center(menu),
         title="[bold blue]NexusNG-CMD[/bold blue]",
-        subtitle="[italic]Your AI Companion[/italic]",
-        border_style="blue",
+        subtitle="[italic cyan]Your Professional AI Assistant[/italic cyan]",
+        border_style="primary",
         padding=(1, 1)
     )
     return panel
 
-def loading_animation():
+def initialization_animation():
     loading_time = random.uniform(3, 6)
     steps = 100
     step_time = loading_time / steps
@@ -217,28 +241,28 @@ def loading_animation():
         TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
         console=console,
     ) as progress:
-        task = progress.add_task("[cyan]Connecting to NexusNG server...", total=steps)
+        task = progress.add_task("[secondary]Initializing NexusNG-CMD...", total=steps)
 
         for _ in range(steps):
             time.sleep(step_time)
             progress.update(task, advance=1)
 
-            # Simulate real loading with random pauses and messages
+            # Simulate initialization process with professional messages
             if random.random() < 0.1:
-                progress.console.print("[yellow]Establishing secure connection...[/yellow]")
+                progress.console.print("[info]Loading language models...[/info]")
             elif random.random() < 0.05:
-                progress.console.print("[green]Verifying credentials...[/green]")
+                progress.console.print("[info]Optimizing response algorithms...[/info]")
             elif random.random() < 0.02:
-                progress.console.print("[blue]Syncing with NexusNG database...[/blue]")
+                progress.console.print("[info]Calibrating AI parameters...[/info]")
 
-    console.print("\n[bold green]Connection established successfully![/bold green]")
+    console.print("\n[success]NexusNG-CMD initialized successfully![/success]")
     time.sleep(1)
 
 def settings_menu(settings, api_key):
     while True:
         console.clear()
         console.print(Panel.fit(
-            f"[cyan]Current Settings:[/cyan]\n"
+            f"[secondary]Current Settings:[/secondary]\n"
             f"Preferred Name: {settings['preferred_name']}\n"
             f"Chat Storage Location: {CHATS_DIR}\n"
             f"API Key: {'*' * 20 + api_key[-4:] if api_key else 'Not set'}\n\n"
@@ -247,7 +271,7 @@ def settings_menu(settings, api_key):
             "[yellow]3.[/yellow] Delete All Data\n"
             "[yellow]4.[/yellow] Back to Main Menu",
             title="Settings",
-            border_style="blue",
+            border_style="primary",
             padding=(1, 1)
         ))
         
@@ -257,12 +281,12 @@ def settings_menu(settings, api_key):
             new_name = Prompt.ask("Enter your preferred name")
             settings['preferred_name'] = new_name
             save_settings(settings)
-            console.print("[green]Preferred name updated successfully![/green]")
+            console.print("[success]Preferred name updated successfully![/success]")
         elif choice == "2":
             new_api_key = getpass.getpass("Enter your new DeepSeek API key (input will be hidden): ")
             save_api_key(new_api_key)
             api_key = new_api_key
-            console.print("[green]API key updated successfully![/green]")
+            console.print("[success]API key updated successfully![/success]")
         elif choice == "3":
             if Confirm.ask("Are you sure you want to delete all data? This action cannot be undone."):
                 shutil.rmtree(CHATS_DIR)
@@ -270,9 +294,9 @@ def settings_menu(settings, api_key):
                 settings = {"preferred_name": "User"}
                 save_settings(settings)
                 api_key = None
-                console.print("[green]All data has been deleted successfully![/green]")
+                console.print("[success]All data has been deleted successfully![/success]")
             else:
-                console.print("[yellow]Data deletion cancelled.[/yellow]")
+                console.print("[warning]Data deletion cancelled.[/warning]")
         elif choice == "4":
             return settings, api_key
         
@@ -282,21 +306,20 @@ def main():
     set_console_size()
     console.clear()
     console.print(Panel.fit(
-        "[bold cyan]Welcome to NexusNG-CMD[/bold cyan]\n"
-        "[italic]Developed by TucoT9[/italic]",
-        border_style="bold green",
+        "[bold blue]Welcome to NexusNG-CMD[/bold blue]\n"
+        "[italic cyan]Developed by TucoT9[/italic cyan]",
+        border_style="blue",
         padding=(1, 1),
         title="NexusNG-CMD",
-        subtitle="Your AI Companion"
+        subtitle="Your Professional AI Assistant"
     ))
     time.sleep(1)
     
-    # Überprüfe den API-Schlüssel
     api_key = load_api_key()
     if not api_key or not verify_api_key(api_key):
         api_key = prompt_for_api_key()
     
-    loading_animation()
+    initialization_animation()
     
     settings = load_settings()
     
@@ -316,13 +339,13 @@ def main():
         elif choice == "2":
             chats = list_chats()
             if not chats:
-                console.print("[yellow]No existing chats found. Starting a new chat.[/yellow]")
+                console.print("[warning]No existing chats found. Starting a new chat.[/warning]")
                 current_chat = Prompt.ask("Enter new chat name")
                 messages = []
             else:
-                table = Table(title="Existing Chats", box=ROUNDED, border_style="blue")
-                table.add_column("Number", style="cyan", no_wrap=True)
-                table.add_column("Chat Name", style="magenta")
+                table = Table(title="Existing Chats", box=DOUBLE, border_style="primary")
+                table.add_column("Number", style="yellow", no_wrap=True)
+                table.add_column("Chat Name", style="secondary")
                 for i, chat in enumerate(chats, 1):
                     table.add_row(str(i), chat)
                 console.print(table)
@@ -333,10 +356,10 @@ def main():
         elif choice == "3":
             chats = list_chats()
             if not chats:
-                console.print("[yellow]No existing chats found.[/yellow]")
+                console.print("[warning]No existing chats found.[/warning]")
             else:
-                table = Table(title="All Chats", box=ROUNDED, border_style="blue")
-                table.add_column("Chat Name", style="magenta")
+                table = Table(title="All Chats", box=DOUBLE, border_style="primary")
+                table.add_column("Chat Name", style="secondary")
                 for chat in chats:
                     table.add_row(chat)
                 console.print(table)
